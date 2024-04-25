@@ -138,6 +138,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   canMove: 1
+  canUseGravity: 1
   walkSpeed: 5.5
   sprintSpeed: 8.5
   turnSpeed: 20
@@ -189,13 +190,37 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   maxAscendDist: 10
-  timeToAscend: 2
+  ascendMinTime: 0.5
+  ascendMaxTime: 5
+  distToMaxTime: 30
   ascendMode: 0
-  GridCanvas: {fileID: 0}
-  GridUI: {fileID: 0}
-  greenGrid: {fileID: 21300000, guid: 2a4d484d26ec9c84b8ccae542bd268c2, type: 3}
-  redGrid: {fileID: 21300000, guid: 4d30e484bd8ca204dadd6d20b22548f1, type: 3}
-  empty: {fileID: 21300000, guid: c3ef6150b978a0b46a84c72c48b8f272, type: 3}
+  easingCurve:
+    serializedVersion: 2
+    m_Curve:
+    - serializedVersion: 3
+      time: 0
+      value: 0
+      inSlope: 1
+      outSlope: 1
+      tangentMode: 34
+      weightedMode: 0
+      inWeight: 0
+      outWeight: 0
+    - serializedVersion: 3
+      time: 1
+      value: 1
+      inSlope: 1
+      outSlope: 1
+      tangentMode: 34
+      weightedMode: 0
+      inWeight: 0
+      outWeight: 0
+    m_PreInfinity: 2
+    m_PostInfinity: 2
+    m_RotationOrder: 4
+  gridProjector: {fileID: 7140377994406350745}
+  greenGrid: {fileID: 2100000, guid: 482628280079d0d41b3f77c2be6fdc13, type: 2}
+  redGrid: {fileID: 2100000, guid: a9585217f8dc0c1468a7c5f1f4cb1279, type: 2}
 --- !u!54 &9012130199947305185
 Rigidbody:
   m_ObjectHideFlags: 0
@@ -242,13 +267,13 @@ CharacterController:
   m_ProvidesContacts: 0
   m_Enabled: 1
   serializedVersion: 3
-  m_Height: 1.55
+  m_Height: 1.65
   m_Radius: 0.4
   m_SlopeLimit: 45
   m_StepOffset: 0.3
   m_SkinWidth: 0.01
   m_MinMoveDistance: 0.001
-  m_Center: {x: 0, y: 0.8, z: 0}
+  m_Center: {x: 0, y: 0.85, z: 0}
 --- !u!1 &8592434459974149188
 GameObject:
   m_ObjectHideFlags: 0
