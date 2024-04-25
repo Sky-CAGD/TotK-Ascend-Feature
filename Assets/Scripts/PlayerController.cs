@@ -116,6 +116,14 @@ public class PlayerController : MonoBehaviour
         isGrounded = Physics.CheckSphere(transform.position, groundCheckDist, groundMask);
 
         //Set velocity to small downward force if on ground
+        if (isGrounded)
+            playerAnimController.SetFallingState(false);
+        else
+            playerAnimController.SetFallingState(true);
+
+        if (velocity.y < -4f)
+            playerAnimController.SetJumpingState(false);
+
         if (isGrounded && velocity.y < 0)
         {
             velocity.y = -2f;

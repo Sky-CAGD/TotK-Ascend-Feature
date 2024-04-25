@@ -9,12 +9,13 @@ public class PlayerAnimController : MonoBehaviour
     private int speedHash;
     private int isJumpingHash;
     private int isAscendingHash;
-
+    private int isFallingHash;
     private void Start()
     {
         speedHash = Animator.StringToHash("speed");
         isJumpingHash = Animator.StringToHash("isJumping");
         isAscendingHash = Animator.StringToHash("isAscending");
+        isFallingHash = Animator.StringToHash("isFalling");
     }
 
     public void SetMoveSpeed(float speed)
@@ -30,5 +31,10 @@ public class PlayerAnimController : MonoBehaviour
     public void SetAscendingState(bool isAscending)
     {
         anim.SetBool(isAscendingHash, isAscending);
+    }
+
+    public void SetFallingState(bool isFalling)
+    {
+        anim.SetBool(isFallingHash, isFalling);
     }
 }
