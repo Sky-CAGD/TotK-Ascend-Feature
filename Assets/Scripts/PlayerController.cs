@@ -4,7 +4,7 @@ using System.Threading;
 using UnityEngine;
 using UnityEngine.InputSystem;
 
-public class PlayerController : MonoBehaviour
+public class PlayerController : SingletonPattern<PlayerController>
 {
     [HideInInspector] public bool canMove = true;
     [HideInInspector] public bool canUseGravity = true;
@@ -30,20 +30,29 @@ public class PlayerController : MonoBehaviour
     private AbilitiesMenu abilitiesMenu;
     private Ascend ascendAbility;
     private PlayerInputMap playerInput;
+    private Abilities currAbility = Abilities.Ascend;
 
     private float moveSpeed;
     private float playerHeight;
     private Vector3 velocity;
     private Vector3 moveDir;
     private Quaternion lastTargetRotation;
+    private bool holdingButton = false;
 
-    //Property to get the player's move direction
+    //Properties
     public Vector3 MoveDir { get { return moveDir; } }
+    public Abilities CurrAbility 
+    { 
+        get { return currAbility; } 
+        set { currAbility = value; }
+    }
 
     public float PlayerHeight { get { return playerHeight; } }
 
-    private void Awake()
+    protected override void Awake()
     {
+        base.Awake();
+
         playerAnimController = GetComponent<PlayerAnimController>();
         charController = GetComponent<CharacterController>();
         abilitiesMenu = GetComponent<AbilitiesMenu>();
@@ -54,8 +63,9 @@ public class PlayerController : MonoBehaviour
 
         Cursor.lockState = CursorLockMode.Locked;
 
-        playerInput.PlayerActions.AbilitiesMenu.performed += ctx => ToggleAbilitiesMenu(ctx);
-        playerInput.PlayerActions.AbilitiesMenu.canceled += ctx => ToggleAbilitiesMenu(ctx);
+        playerInput.PlayerActions.AbilitiesMenu.started += ctx => AbilitiesMenu(ctx);
+        playerInput.PlayerActions.AbilitiesMenu.performed += ctx => AbilitiesMenu(ctx);
+        playerInput.PlayerActions.AbilitiesMenu.canceled += ctx => AbilitiesMenu(ctx);
         playerInput.PlayerActions.Sprint.performed += ctx => Sprint(ctx);
         playerInput.PlayerActions.Sprint.canceled += ctx => Sprint(ctx);
         playerInput.PlayerActions.Jump.performed += ctx => Jump();
@@ -158,11 +168,16 @@ public class PlayerController : MonoBehaviour
             ascendAbility.AttemptToAscend();
     }
 
-    //Cancel using ascend mode if using it
+    //Cancel using ascend mode if using it - or descend back if at the top
     private void CancelAbility()
     {
         if (ascendAbility.ascendMode)
-            abilitiesMenu.DectivateAbility();
+        {
+            if (!ascendAbility.isAscending)
+                abilitiesMenu.DectivateAbility();
+            else if (ascendAbility.waitingAtTop)
+                ascendAbility.startDescend = true;
+        }
     }
 
     private void Sprint(InputAction.CallbackContext context)
@@ -184,20 +199,39 @@ public class PlayerController : MonoBehaviour
         }
     }
 
-    private void ToggleAbilitiesMenu(InputAction.CallbackContext context)
+    //Hold button to open abilities menu and select new ability to use
+    //Tab button to start using the current ability
+    private void AbilitiesMenu(InputAction.CallbackContext context)
     {
+        //Button input started
+        if(context.started)
+        {
+            holdingButton = false;
+        }
+        //Button Held
         if(context.performed)
         {
-            Cursor.lockState = CursorLockMode.Confined;
-            abilitiesMenu.abilitiesCanvas.SetActive(true);
-            Time.timeScale = 0f;
+            abilitiesMenu.OpenAbilitesMenu();
+            holdingButton = true;
         }
-        else if(context.canceled)
+        //Button released/tapped and menu was not opened (not still holding button)
+        else if (context.canceled && !holdingButton)
         {
-            Cursor.lockState = CursorLockMode.Locked;
-            abilitiesMenu.abilitiesCanvas.SetActive(false);
-            Time.timeScale = 1f;
+            //Check if currAbility is the ascend ability
+            if (currAbility == Abilities.Ascend)
+            {
+                //Check if already ascending
+                if (!ascendAbility.ascendMode)
+                {
+                    //Activate ascension
+                    abilitiesMenu.ActivateAscend();
+                }
+                else
+                {
+                    //Dectivate ascension
+                    abilitiesMenu.DectivateAbility();
+                }
+            }
         }
-
     }
 }

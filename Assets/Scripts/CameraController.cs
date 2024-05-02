@@ -2,6 +2,8 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using Cinemachine;
+using UnityEngine.ProBuilder;
+using UnityEngine.Rendering;
 
 public class CameraController : SingletonPattern<CameraController>
 {
@@ -10,6 +12,7 @@ public class CameraController : SingletonPattern<CameraController>
     [SerializeField] private GameObject linkModel;
 
     private float transitionTime;
+    private Camera mainCam;
 
     public bool usingMainCam;
 
@@ -18,6 +21,7 @@ public class CameraController : SingletonPattern<CameraController>
         base.Awake();
         usingMainCam = true;
         transitionTime = csdc.m_DefaultBlend.m_Time;
+        mainCam = Camera.main;
     }
 
     public void ActivateMainCam()
@@ -46,5 +50,15 @@ public class CameraController : SingletonPattern<CameraController>
 
         if(!usingMainCam)
             linkModel.SetActive(false);
+    }
+
+    public void RenderEverything()
+    {
+        mainCam.cullingMask = LayerMask.GetMask("Default", "TransparentFX", "Ignore Raycast", "Ground", "Water", "UI", "Player");
+    }
+
+    public void AscendRendering()
+    {
+        mainCam.cullingMask = LayerMask.GetMask("Player");
     }
 }

@@ -14,7 +14,14 @@ public class Ascend : MonoBehaviour
     public float ascendMaxTime = 5f;
     public float distToMaxTime = 50f;
     public bool ascendMode = false;
+    public bool isAscending = false;
+    public bool waitingAtTop = false;
+    public bool startExit = false;
+    public bool startDescend = false;
     public AnimationCurve easingCurve;
+    public GameObject ascendBackground;
+    public GameObject descendBackground;
+    public LayerMask playerLayer;
 
     [Header("Grid UI References")]
     public DecalProjector gridProjector;
@@ -27,19 +34,20 @@ public class Ascend : MonoBehaviour
     private Vector3 ceilingPoint;
     private Vector3 nextPotAscendPoint;
     private float playerHalfHeight;
-    private bool isAscending;
 
     private void Awake()
     {
         playerController = GetComponent<PlayerController>();
         playerAnimController = GetComponent<PlayerAnimController>();
+        ascendBackground.SetActive(false);
+        descendBackground.SetActive(false);
         gridProjector.enabled = false;
-        isAscending = false;
     }
 
     private void Start()
     {
         playerHalfHeight = playerController.PlayerHeight / 2;
+        playerLayer = ~playerLayer;
     }
 
     // Update is called once per frame
@@ -57,7 +65,7 @@ public class Ascend : MonoBehaviour
         RaycastHit hit;
         Vector3 playerPos = transform.position + new Vector3(0, playerHalfHeight, 0);
 
-        if (Physics.Raycast(playerPos, Vector3.up, out hit))
+        if (Physics.Raycast(playerPos, Vector3.up, out hit, Mathf.Infinity, playerLayer))
         {
             //Set canvas position to draw grid on ceiling
             gridProjector.transform.position = hit.point - new Vector3(0, 2f, 0);
@@ -74,7 +82,8 @@ public class Ascend : MonoBehaviour
 
     public void AttemptToAscend()
     {
-        if(ascendMode && CanAscend())
+        //if in ascend mode, not currently ascending, and able to ascend, start ascending
+        if(ascendMode && !isAscending && CanAscend())
         {
             Vector3 ascendPoint = GetAscendPoint();
 
@@ -83,12 +92,18 @@ public class Ascend : MonoBehaviour
             else
                 Debug.Log("Failed to Ascend");
         }
+        //if waiting at the top - exit the ground
+        else if(waitingAtTop)
+        {
+            startExit = true;
+        }
     }
 
     private void AscendToPoint(Vector3 ascendPoint)
     {
         CameraController.Instance.ActivateMainCam();
         gridProjector.enabled = false;
+        AbilitiesMenu.Instance.ascendControlsPanel.SetActive(false);
 
         float ascendToCeilingTime = GetAscendToCeilingTime(transform.position, ceilingPoint);
         float ascendThroughCeilingTime = GetAscendThroughCeilingTime(ceilingPoint, ascendPoint);
@@ -144,7 +159,7 @@ public class Ascend : MonoBehaviour
         Vector3 raycastOrigin = playerPos + new Vector3(0, 10000f, 0);
      
         //Raycast down from the sky to see the top-most piece of geometry above the player
-        if (Physics.Raycast(raycastOrigin, Vector3.down, out hit))
+        if (Physics.Raycast(raycastOrigin, Vector3.down, out hit, Mathf.Infinity, playerLayer))
         {
             ascendPoint = hit.point;
             Debug.DrawLine(raycastOrigin, hit.point, Color.yellow);
@@ -156,7 +171,7 @@ public class Ascend : MonoBehaviour
         while (nextPotAscendPoint.y > playerPos.y)
         {
             //Raycast down from the last discovered ascendPoint
-            if (Physics.Raycast(ascendPoint - new Vector3(0, 0.5f, 0), Vector3.down, out hit))
+            if (Physics.Raycast(ascendPoint - new Vector3(0, 0.5f, 0), Vector3.down, out hit, Mathf.Infinity, playerLayer))
             {
                 nextPotAscendPoint = hit.point;           
 
@@ -187,7 +202,7 @@ public class Ascend : MonoBehaviour
         RaycastHit hit;
         Vector3 playerPos = transform.position + new Vector3(0, 1, 0);
 
-        if (Physics.Raycast(playerPos, Vector3.up, out hit))
+        if (Physics.Raycast(playerPos, Vector3.up, out hit, Mathf.Infinity, playerLayer))
         {
             if(hit.distance <= maxAscendDist)
             {
@@ -237,7 +252,11 @@ public class Ascend : MonoBehaviour
         //Pause before moving through ceiling
         yield return new WaitForSeconds(1f);
         timeElapsed = 0;
-        
+
+        //Activate the ascend background & particles
+        ascendBackground.SetActive(true);
+        CameraController.Instance.AscendRendering();
+
         //Lerp player from ceiling to ascend point
         while (timeElapsed < timeBC)
         {
@@ -249,21 +268,89 @@ public class Ascend : MonoBehaviour
         }
         transform.position = pointC;
 
-        //Pause before exiting ceiling
-        yield return new WaitForSeconds(1f);
-        timeElapsed = 0;
+        //Deactivate the ascend background & particles
+        ascendBackground.SetActive(false);
+        CameraController.Instance.RenderEverything();
 
-        Vector3 finalPoint = pointC + new Vector3(0, playerHalfHeight, 0);
-        //Lerp player to stand on ground of ascend point
-        while (timeElapsed < 0.5f)
+        //Display Exit Controls
+        AbilitiesMenu.Instance.ascendExitPanel.SetActive(true);
+
+        playerAnimController.SetAscendingState(false);
+        playerAnimController.SetMoveSpeed(0);
+
+        //Pause before exiting ceiling
+        waitingAtTop = true;
+        while(waitingAtTop)
         {
-            float u = timeElapsed / timeBC;
+            if(startExit)
+            {
+                waitingAtTop = false;
+                StartCoroutine(ExitGround(pointC, 0.5f));
+                startExit = false;
+            }
+            else if(startDescend)
+            {
+                waitingAtTop = false;
+                StartCoroutine(DescendLerp(pointC, pointA, timeBC));
+                startDescend = false;
+            }
+            yield return null;
+        }
+
+        //Hide Exit Controls
+        AbilitiesMenu.Instance.ascendExitPanel.SetActive(false);
+    }
+
+    //Lerp player to stand on ground of ascend point
+    private IEnumerator ExitGround(Vector3 pointC, float exitTime)
+    {
+        playerAnimController.SetAscendingState(true);
+
+        float timeElapsed = 0;
+        Vector3 finalPoint = pointC + new Vector3(0, playerHalfHeight, 0);
+
+        while (timeElapsed < exitTime)
+        {
+            float u = timeElapsed / exitTime;
             transform.position = Vector3.Lerp(pointC, finalPoint, u);
 
             timeElapsed += Time.deltaTime;
             yield return null;
         }
         transform.position = finalPoint;
+
+        //Exit ascending state
+        playerController.canMove = true;
+        playerController.canUseGravity = true;
+        isAscending = false;
+        playerAnimController.SetAscendingState(false);
+        ascendMode = false;
+    }
+
+    //Lerp player from ascend point back to original ground point
+    IEnumerator DescendLerp(Vector3 pointA, Vector3 pointB, float timeAB)
+    {
+        float timeElapsed = 0;
+        playerAnimController.SetAscendingState(true);
+
+        //Activate the ascend background & particles
+        descendBackground.SetActive(true);
+        CameraController.Instance.AscendRendering();
+
+        //Lerp player from ground to ceiling
+        while (timeElapsed < timeAB)
+        {
+            float u = timeElapsed / timeAB;
+            transform.position = Vector3.Lerp(pointA, pointB, u); //easingCurve.Evaluate(u)
+
+            timeElapsed += Time.deltaTime;
+            yield return null;
+        }
+        transform.position = pointB;
+
+        //Deactivate the ascend background & particles
+        descendBackground.SetActive(false);
+        CameraController.Instance.RenderEverything();
 
         //Exit ascending state
         playerController.canMove = true;

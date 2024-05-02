@@ -20,7 +20,7 @@ public class PlayerAnimController : MonoBehaviour
 
     public void SetMoveSpeed(float speed)
     {
-        anim.SetFloat(speedHash, speed, 0.1f, Time.deltaTime);
+        anim.SetFloat(speedHash, speed);
     }
 
     public void SetJumpingState(bool isJumping)
